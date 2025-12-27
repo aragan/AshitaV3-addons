@@ -50,7 +50,7 @@ local state = {
     next_action = 0.0,
 
     song_delay  = 8.5,
-    interval    = 240.0,
+    interval    = 80.0,
     next_cycle  = 0.0,
 
     songs       = {
@@ -580,7 +580,7 @@ local function handle_command(cmd, nType)
         return true
     end
 
-    elseif sub == 'repeat' then
+    if sub == 'repeat' then
         local v = (parts[3] or ''):lower()
         if v == '' or v == 'toggle' then state.repeat_cycle = not state.repeat_cycle
         elseif v == 'on' then state.repeat_cycle = true
@@ -595,7 +595,7 @@ local function handle_command(cmd, nType)
         end
         echo(('Repeat: %s'):format(state.repeat_cycle and 'ON' or 'OFF'))
         return true
-
+    end
 
     echo('Unknown command. Use /singer help')
     return true
