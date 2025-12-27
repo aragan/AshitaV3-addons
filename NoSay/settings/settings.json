@@ -1,0 +1,13 @@
+{
+    "global": {
+        "enabled": true,
+        "block_say": true,
+        "block_bare_when_last_is_say": true,
+        "strict_mode": false,
+        "allow_prefix": "!!",
+        "notify": true
+    },
+    "aragan": {
+        "strict_mode": true
+    }
+}
