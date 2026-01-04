@@ -12,7 +12,7 @@
 _addon = _addon or {}
 _addon.name     = 'singer'
 _addon.author   = 'Aragan'
-_addon.version  = '1.1-v3- version transformers coming'
+_addon.version  = '1.1-v3-playlist-cycle'
 _addon.desc     = 'Singer (No HUD) for Ashita v3 ONLY'
 
 pcall(require, 'common')
@@ -76,7 +76,46 @@ local state = {
 
     _last_tick_ms   = -1,
     _queue_sig      = nil,      -- 'cmd_delay' | 'delay_cmd' | 'cmd_only'
+    ------------------------------------------------------------------------------------------------
+    -- HUD Settings (pbar-style)
+    ------------------------------------------------------------------------------------------------
+    hud_enabled     = true,
+    hud_x           = 7,
+    hud_y           = 120,
+
+    -- Font style (ثابت مثل pbar.lua)
+    hud_font_name   = 'Arial',
+    hud_font_size   = 10,
+    hud_font_color  = 0xFFFFFFFF,
+    hud_font_bold   = true,
+    hud_bg_color    = 0x80000000,
+    hud_bg_visible  = true,
+
+    -- طي / فتح الـ HUD عند الضغط على عنوان Singer
+    hud_collapsed   = false,
+
+    -- تتبع السحب مقابل النقر (سطر العنوان)
+    _hud_drag_pending = false,
+    _hud_drag_start_x = 0,
+    _hud_drag_start_y = 0,
+
+    -- داخلي
+    _hud_ready      = false,
+    _hud_box        = { x = 7, y = 120, w = 220, h = 120 },
+    _hud_lines      = {},
+    _hud_actions    = {},
+    _hud_dragging   = false,
+    _hud_drag_dx    = 0,
+    _hud_drag_dy    = 0,
+    _hud_next_upd   = 0.0,
+
 }
+
+------------------------------------------------------------------------------------------------
+-- تعريفات مسبقة للـ HUD (لتفادي اعتبارها globals قبل تعريفها)
+------------------------------------------------------------------------------------------------
+local hud_update
+local hud_set_visible
 
 ----------------------------------------------------------------------------------------------------
 -- Helpers
@@ -225,8 +264,16 @@ local function load_configs()
         if state.marcato_index < 1 then state.marcato_index = 1 end
         state.marcato_song    = xml_get_attr(settings_tag, 'marcato_song') or nil
         if state.marcato_song == '' then state.marcato_song = nil end
+        state.marcato_song    = xml_get_attr(settings_tag, 'marcato_song') or nil
+        if state.marcato_song == '' then state.marcato_song = nil end
         state.playlist     = xml_get_attr(settings_tag, 'active') or nil
     end
+
+        -- HUD settings
+        local hv = xml_get_attr(settings_tag, 'hud')
+        if hv ~= nil then state.hud_enabled = to_bool(hv) else state.hud_enabled = true end
+        state.hud_x = to_num(xml_get_attr(settings_tag, 'hud_x'), tonumber(state.hud_x) or 7)
+        state.hud_y = to_num(xml_get_attr(settings_tag, 'hud_y'), tonumber(state.hud_y) or 120)
 
     return true
 end
@@ -235,7 +282,9 @@ local function save_configs()
     local lines = {}
     lines[#lines+1] = '<?xml version="1.0" encoding="UTF-8"?>'
     lines[#lines+1] = '<configs>'
-    lines[#lines+1] = ('  <settings enabled="%s" repeat="%s" delay="%.1f" cycle="%.1f" target="%s" active="%s" use_nitro="%s" use_ccsv="%s" use_marcato="%s" marcato_index="%s" marcato_song="%s" debug="false" />'):format(
+        lines[#lines+1] = ('  <settings enabled="%s" repeat="%s" delay="%.1f" cycle="%.1f" target="%s" active="%s" '
+        .. 'use_nitro="%s" use_ccsv="%s" use_marcato="%s" marcato_index="%d" marcato_song="%s" '
+        .. 'hud="%s" hud_x="%d" hud_y="%d" debug="false" />'):format(
         state.enabled and 'true' or 'false',
         state.repeat_cycle and 'true' or 'false',
         tonumber(state.song_delay) or 8.5,
@@ -245,8 +294,11 @@ local function save_configs()
         state.nitro and 'true' or 'false',
         state.ccsv and 'true' or 'false',
         state.marcato_first and 'true' or 'false',
-        tostring(math.floor(tonumber(state.marcato_index) or 1)),
-        xml_escape(state.marcato_song or '')
+        math.floor(tonumber(state.marcato_index) or 1),
+        xml_escape(state.marcato_song or ''),
+        state.hud_enabled and 'true' or 'false',
+        math.floor(tonumber(state.hud_x) or 7),
+        math.floor(tonumber(state.hud_y) or 120)
     )
     lines[#lines+1] = '</configs>'
 
@@ -267,6 +319,65 @@ end
 if type(_G.L) ~= 'function' then _G.L = function(t) return t end end
 if type(_G.T) ~= 'function' then _G.T = function(t) return t end end
 
+
+----------------------------------------------------------------------------------------------------
+-- استخراج ترتيب أسماء الـ Playlists من settings.lua بنفس ترتيب الكتابة داخل الملف
+-- (لأن pairs() لا يضمن ترتيب ثابت في Lua 5.1)
+----------------------------------------------------------------------------------------------------
+local function parse_playlist_names_from_settings_file()
+    local f = io.open(SETTINGS_FILE, 'r')
+    if not f then return nil end
+    local file_text = f:read('*a') or ''
+    f:close()
+
+    -- ابحث عن جدول: playlist = { ... }
+    local s = file_text:find('playlist')
+    if not s then return nil end
+
+    local eq = file_text:find('=', s)
+    if not eq then return nil end
+
+    local brace = file_text:find('{', eq)
+    if not brace then return nil end
+
+    -- حدد نهاية جدول playlist عبر عدّ الأقواس (يشمل الجداول الداخلية للأغاني)
+    local depth = 0
+    local i = brace
+    local finish = nil
+    while i <= #file_text do
+        local c = file_text:sub(i,i)
+        if c == '{' then
+            depth = depth + 1
+        elseif c == '}' then
+            depth = depth - 1
+            if depth == 0 then
+                finish = i
+                break
+            end
+        end
+        i = i + 1
+    end
+
+    if not finish or finish <= brace then
+        return nil
+    end
+
+    local chunk = file_text:sub(brace, finish)
+
+    -- التقط أسماء المفاتيح ["name"] = {  بالترتيب
+    local names = {}
+    for key in chunk:gmatch('%[%s*["\']([^"\']+)["\']%s*%]%s*=%s*%{') do
+        if key and key ~= '' then
+            names[#names + 1] = key
+        end
+    end
+
+    if #names == 0 then
+        return nil
+    end
+    return names
+end
+
 local function rebuild_playlist_cache()
     state._pl_names_cache = nil
     state._pl_pos = 1
@@ -277,6 +388,7 @@ local function rebuild_playlist_cache()
         return
     end
 
+    -- Build LUT for case-insensitive matching:
     local names = {}
     local lut = {}
     for k, _ in pairs(cfg.playlist) do
@@ -286,7 +398,39 @@ local function rebuild_playlist_cache()
         end
     end
 
-    table.sort(names, function(a,b) return a:lower() < b:lower() end)
+    -- Preserve the order from settings.lua (file order) if possible:
+    local file_names = parse_playlist_names_from_settings_file()
+    if file_names and #file_names > 0 then
+        local ordered = {}
+        local seen = {}
+
+        for i = 1, #file_names do
+            local want = tostring(file_names[i] or ''):lower()
+            local real = lut[want]
+            if real and not seen[real:lower()] then
+                ordered[#ordered + 1] = real
+                seen[real:lower()] = true
+            end
+        end
+
+        -- Append anything not found in the file-order scan (fallback)
+        for i = 1, #names do
+            local k = names[i]
+            local kl = k:lower()
+            if not seen[kl] then
+                ordered[#ordered + 1] = k
+                seen[kl] = true
+            end
+        end
+
+        if #ordered > 0 then
+            names = ordered
+        end
+    else
+        -- Stable fallback: alphabetical
+        table.sort(names, function(a,b) return a:lower() < b:lower() end)
+    end
+
     state._pl_names_cache = names
     state._pl_lut = lut
 end
@@ -416,6 +560,78 @@ local function set_playlist(name)
 end
 
 ----------------------------------------------------------------------------------------------------
+-- /sing playlist cycle
+-- كل مرة: ينتقل للـ Playlist التالي (حسب ترتيب settings.lua)
+----------------------------------------------------------------------------------------------------
+local function cycle_playlist()
+    if not state.settings then
+        load_settings()
+    end
+    if not state._pl_names_cache then
+        rebuild_playlist_cache()
+    end
+
+    local names = state._pl_names_cache
+    if not names or #names == 0 then
+        echo('No playlists found. Put settings.lua next to singer.lua.')
+        return false
+    end
+
+    local cur = tostring(state.playlist or ''):lower()
+    local idx = 0
+    for i = 1, #names do
+        if tostring(names[i] or ''):lower() == cur then
+            idx = i
+            break
+        end
+    end
+
+    local next_i = (idx % #names) + 1
+    local next_name = names[next_i]
+    return set_playlist(next_name)
+end
+
+----------------------------------------------------------------------------------------------------
+-- /sing playlist cycleback
+-- كل مرة: يرجع للـ Playlist السابق (حسب ترتيب settings.lua)
+----------------------------------------------------------------------------------------------------
+local function cycle_playlist_back()
+    if not state.settings then
+        load_settings()
+    end
+    if not state._pl_names_cache then
+        rebuild_playlist_cache()
+    end
+
+    local names = state._pl_names_cache
+    if not names or #names == 0 then
+        echo('No playlists found. Put settings.lua next to singer.lua.')
+        return false
+    end
+
+    local cur = tostring(state.playlist or ''):lower()
+    local idx = 0
+    for i = 1, #names do
+        if tostring(names[i] or ''):lower() == cur then
+            idx = i
+            break
+        end
+    end
+
+    local prev_i
+    if idx == 0 then
+        prev_i = #names -- إذا ما كان فيه Playlist محدد، ابدأ من الأخير
+    else
+        prev_i = idx - 1
+        if prev_i < 1 then prev_i = #names end
+    end
+
+    local prev_name = names[prev_i]
+    return set_playlist(prev_name)
+end
+
+
+----------------------------------------------------------------------------------------------------
 -- Casting logic
 ----------------------------------------------------------------------------------------------------
 local MAX_ACTIONS_PER_CYCLE = 32
@@ -457,16 +673,14 @@ local function build_steps_for_song_list(list)
         actions = actions + 2
     end
 
-    -- Marcato rules:
-    -- Marcato rules:
-    -- 1) If Marcato (first song) is enabled, queue Marcato at the start.
-    -- 2) If marcato_song is set, queue Marcato right before that matching song (once per cycle).
+    -- Marcato behavior (copied from the original Singer idea in sing_cast.lua):
+    -- When the next song to be cast matches the configured Marcato target, cast Marcato FIRST,
+    -- then cast the song on the next queued step (same cycle). It never replaces the whole playlist.
     local marc_used = false
-
     local marc_index = math.floor(tonumber(state.marcato_index) or 1)
     if marc_index < 1 then marc_index = 1 end
 
-    local marc_song = (state.marcato_first and nil) or state.marcato_song
+    local marc_song = state.marcato_song
     if type(marc_song) == 'string' then
         marc_song = marc_song:gsub('^%s+', ''):gsub('%s+$', ''):lower()
         if marc_song == '' then marc_song = nil end
@@ -477,27 +691,30 @@ local function build_steps_for_song_list(list)
     for i, song in ipairs(list) do
         if actions >= MAX_ACTIONS_PER_CYCLE then break end
 
-        -- Marcato by index when enabled (marcato on): queue Marcato right before that song index (once per cycle).
+        local song_name = (type(song) == 'string') and (song:gsub('^%s+', ''):gsub('%s+$', '')) or nil
+        local song_lower = song_name and song_name:lower() or nil
+
+        -- Mode A: Marcato ON (by index) -> Marcato before song #marc_index.
         if state.marcato_first and (not marc_used) and (i == marc_index) then
             steps[#steps+1] = { cmd = '/ja "Marcato" <me>', wait = 2.2 }
             actions = actions + 1
             marc_used = true
         end
 
-        -- Song-specific Marcato (only when marcato on is OFF).
-        if (not marc_used) and marc_song and type(song) == 'string' then
-            local sn = song:gsub('^%s+', ''):gsub('%s+$', ''):lower()
-            if sn == marc_song then
-                steps[#steps+1] = { cmd = '/ja "Marcato" <me>', wait = 2.2 }
-                actions = actions + 1
-                marc_used = true
-            end
+        -- Mode B: Marcato OFF -> if marcato_song matches this song, Marcato before it.
+        if (not state.marcato_first) and (not marc_used) and marc_song and song_lower and (song_lower == marc_song) then
+            steps[#steps+1] = { cmd = '/ja "Marcato" <me>', wait = 2.2 }
+            actions = actions + 1
+            marc_used = true
         end
-        steps[#steps+1] = {
-            cmd  = ('/ma "%s" %s'):format(song, state.target),
-            wait = (state.song_delay + (state.pad or 0)),
-        }
-        actions = actions + 1
+
+        if song_name and song_name ~= '' then
+            steps[#steps+1] = {
+                cmd  = ('/ma "%s" %s'):format(song_name, state.target),
+                wait = (state.song_delay + (state.pad or 0)),
+            }
+            actions = actions + 1
+        end
     end
 
     return steps
@@ -542,7 +759,7 @@ local function show_help()
     echo('/singer on | off | toggle | status')
     echo('/singer now')
     echo('/singer playlists')
-    echo('/singer playlist <name>')
+    echo('/singer playlist <name|cycle|cycleback>')
     echo('/singer delay <sec>   (min 0.5)')
     echo('/singer interval <sec> (min 30)')
     echo('/singer target <tgt>  (ex: <me> or <t>)')
@@ -595,6 +812,7 @@ local function tick()
             state.next_cycle = t + 9999999.0
         end
     end
+    hud_update(false)
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -651,9 +869,19 @@ local function handle_command(cmd, nType)
     elseif sub == 'playlist' then
         local name = parts[3]
         if not name or name == '' then
-            echo('Usage: /singer playlist <name>')
+            echo('Usage: /singer playlist <name|cycle|cycleback>')
             return true
         end
+
+        local mode = tostring(name):lower()
+        if mode == 'cycle' then
+            cycle_playlist()
+            return true
+        elseif mode == 'cycleback' then
+            cycle_playlist_back()
+            return true
+        end
+
         if not state.settings then load_settings() end
         set_playlist(name)
         return true
@@ -726,7 +954,10 @@ local function handle_command(cmd, nType)
                 state.marcato_first = false
             end
             save_configs()
-            echo(('Marcato (by index): %s (index=%d)'):format(state.marcato_first and 'ON' or 'OFF', math.floor(tonumber(state.marcato_index) or 1)))
+            echo(('Marcato (by index): %s (index=%d)'):format(
+                state.marcato_first and 'ON' or 'OFF',
+                math.floor(tonumber(state.marcato_index) or 1)
+            ))
             return true
         end
 
@@ -735,22 +966,391 @@ local function handle_command(cmd, nType)
         if n and n >= 1 then
             state.marcato_index = math.floor(n)
             save_configs()
-            echo(('Marcato index set to %d (use /singer marcato on)'):format(state.marcato_index))
+            echo(('Marcato index set to %d'):format(state.marcato_index))
             return true
         end
 
-        -- Song name: save MarcatoSong persistently (used only when Marcato-by-index is OFF).
+        -- Song name: save MarcatoSong persistently (used only when marcato on is OFF).
         state.marcato_song = v
         save_configs()
-        echo(('Marcato song saved: %s (used only when marcato on is OFF)'):format(v))
+        echo(('Marcato song saved: %s'):format(v))
+        return true
+    elseif sub == 'repeat' then
+        local v = (parts[3] or ''):lower()
+        if v == '' or v == 'toggle' then state.repeat_cycle = not state.repeat_cycle
+        elseif v == 'on' then state.repeat_cycle = true
+        elseif v == 'off' then state.repeat_cycle = false
+        else
+            echo('Usage: /singer repeat on|off|toggle')
+            return true
+        end
+        save_configs()
+        if state.repeat_cycle then
+            state.next_cycle = now_clock() + 0.5
+        end
+        echo(('Repeat: %s'):format(state.repeat_cycle and 'ON' or 'OFF'))
         return true
     end
 
-    echo('Unknown command. Use /singer help')
+    
+    if sub == 'hud' then
+        local v = (parts[3] or ''):lower()
+        if v == '' then
+            echo(('HUD: %s (x=%d,y=%d)'):format(state.hud_enabled and 'ON' or 'OFF', math.floor(tonumber(state.hud_x) or 7), math.floor(tonumber(state.hud_y) or 120)))
+            return true
+        end
+        if v == 'on' then
+            state.hud_enabled = true
+            save_configs()
+            hud_update(true)
+            echo('HUD: ON')
+            return true
+        end
+        if v == 'off' then
+            state.hud_enabled = false
+            save_configs()
+            hud_set_visible(false)
+            echo('HUD: OFF')
+            return true
+        end
+        if v == 'toggle' then
+            state.hud_enabled = not state.hud_enabled
+            save_configs()
+            hud_update(true)
+            echo('HUD: ' .. (state.hud_enabled and 'ON' or 'OFF'))
+            return true
+        end
+        echo('Usage: /singer hud on|off|toggle')
+        return true
+    end
+
+echo('Unknown command. Use /singer help')
     return true
 end
 
 ----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+-- pbar-style HUD (Ashita v3)
+-- نفس طريقة pbar.lua: FontManager + Background + تحديث في render / d3d_present / prerender.
+----------------------------------------------------------------------------------------------------
+local HUD_ALIAS = '__singer_addon_hud'
+
+-- Windows mouse message ids (Ashita v3 passes these)
+local WM_MOUSEMOVE   = 0x0200
+local WM_LBUTTONDOWN = 0x0201
+local WM_LBUTTONUP   = 0x0202
+
+-- -----------------------------------------------------------------------------------------------
+-- دوال HUD مساعدة
+-- -----------------------------------------------------------------------------------------------
+local function hud_get_font()
+    local fm = nil
+    local f  = nil
+    pcall(function()
+        fm = AshitaCore:GetFontManager()
+        if fm then
+            -- Create() غالباً يرجّع نفس الكائن اذا كان موجود
+            f = fm:Create(HUD_ALIAS)
+        end
+    end)
+    return f
+end
+
+local function hud_init()
+    if state._hud_ready then return end
+    local f = hud_get_font()
+    if not f then return end
+
+    pcall(function()
+        f:SetBold(state.hud_font_bold and true or false)
+        f:SetColor(state.hud_font_color)
+        f:SetFontFamily(state.hud_font_name)
+        f:SetFontHeight(state.hud_font_size)
+        f:SetPositionX(tonumber(state.hud_x) or 7)
+        f:SetPositionY(tonumber(state.hud_y) or 120)
+        f:SetText('')
+        f:SetVisibility(false)
+
+        local bg = f:GetBackground()
+        if bg then
+            bg:SetColor(state.hud_bg_color)
+            bg:SetVisibility(state.hud_bg_visible and true or false)
+        end
+    end)
+
+    state._hud_ready = true
+end
+
+hud_set_visible = function(v)
+    local f = hud_get_font()
+    if not f then return end
+    pcall(function()
+        f:SetVisibility(v and true or false)
+    end)
+end
+
+local function hud_set_position(x, y)
+    local f = hud_get_font()
+    if not f then return end
+    pcall(function()
+        f:SetPositionX(x)
+        f:SetPositionY(y)
+    end)
+end
+
+local function hud_set_text(text)
+    local f = hud_get_font()
+    if not f then return end
+    pcall(function()
+        f:SetText(text or '')
+    end)
+end
+
+-- color helpers for Ashita text (|cAARRGGBB| .. |r)
+local function hud_col(on, on_color, off_color)
+    if on then
+        return ('|c%s|ON|r'):format(on_color or 'FF00FF00')
+    end
+    return ('|c%s|OFF|r'):format(off_color or 'FFFF0000')
+end
+
+local function hud_build_lines()
+    state._hud_lines = {}
+    state._hud_actions = {}
+
+    local function add(line, fn)
+        state._hud_lines[#state._hud_lines+1] = line
+        state._hud_actions[#state._hud_actions+1] = fn
+    end
+
+    -- سطر 1: عنوان (منطقة سحب)
+    add('|cFFFFFFFF|Singer|r', function()
+        state.hud_collapsed = not state.hud_collapsed
+    end)
+
+    -- إذا كان الـ HUD مطوي، نظهر العنوان فقط.
+    if state.hud_collapsed then
+        return
+    end
+
+    -- سطر 2: Enabled (click)
+    add(('Enabled: [%s]'):format(hud_col(state.enabled)), function()
+        state.enabled = not state.enabled
+        state.busy = false
+        if state.enabled then
+            state.next_cycle = now_clock() + 0.5
+        else
+            state.next_cycle = now_clock() + 9999999.0
+        end
+        save_configs()
+    end)
+
+    -- سطر 3: Repeat (click)
+    add(('Repeat:  [%s]'):format(hud_col(state.repeat_cycle)), function()
+        state.repeat_cycle = not state.repeat_cycle
+        save_configs()
+    end)
+
+    -- سطر 4: Playlist
+    add(('Playlist: |cFFFFFFFF|%s|r'):format(state.playlist or 'none'), nil)
+
+    -- سطر 5: Nitro (click)
+    add(('Nitro:   [%s]'):format(hud_col(state.nitro)), function()
+        state.nitro = not state.nitro
+        save_configs()
+    end)
+
+    -- سطر 6: CCSV (click)
+    add(('CCSV:    [%s]'):format(hud_col(state.ccsv)), function()
+        state.ccsv = not state.ccsv
+        save_configs()
+    end)
+
+    -- سطر 7: Marcato (click)
+    add(('Marcato: [%s] (index=%d)'):format(hud_col(state.marcato_first), math.floor(tonumber(state.marcato_index) or 1)), function()
+        state.marcato_first = not state.marcato_first
+        save_configs()
+    end)
+
+    if (not state.marcato_first) and state.marcato_song and state.marcato_song ~= '' then
+        add(('MarcatoSong: |cFFFFFFFF|%s|r'):format(state.marcato_song), nil)
+    end
+
+    -- قائمة الأغاني (عرض فقط)
+    if state.songs and type(state.songs) == 'table' then
+        local mi = math.floor(tonumber(state.marcato_index) or 1)
+        for i = 1, #state.songs do
+            local sname = tostring(state.songs[i] or '')
+            local mark = ''
+            if state.marcato_first and i == mi then
+                mark = '|cFFFFFF00|*|r '
+            end
+            add(('  %s%d) %s'):format(mark, i, sname), nil)
+            if #state._hud_lines >= 14 then break end -- امنع التمدد الكبير
+        end
+    end
+end
+
+local function hud_recalc_box()
+    local line_h = (tonumber(state.hud_font_size) or 10) + 4
+    local pad    = 6
+    local char_w = 7
+
+    local maxlen = 0
+    for i = 1, #state._hud_lines do
+        local l = state._hud_lines[i] or ''
+        if #l > maxlen then maxlen = #l end
+    end
+
+    state._hud_box.x = math.floor(tonumber(state.hud_x) or 7)
+    state._hud_box.y = math.floor(tonumber(state.hud_y) or 120)
+    state._hud_box.w = (maxlen * char_w) + (pad * 2)
+    state._hud_box.h = (#state._hud_lines * line_h) + (pad * 2)
+    state._hud_box._line_h = line_h
+    state._hud_box._pad = pad
+end
+
+local function hud_point_inside(x, y)
+    local b = state._hud_box
+    return (x >= b.x and x <= (b.x + b.w) and y >= b.y and y <= (b.y + b.h))
+end
+
+local function hud_line_at(y)
+    local b = state._hud_box
+    local rel = y - b.y - (b._pad or 6)
+    if rel < 0 then return 0 end
+    return math.floor(rel / (b._line_h or 14)) + 1
+end
+
+hud_update = function(force)
+    if not state.hud_enabled then
+        hud_set_visible(false)
+        return
+    end
+
+    hud_init()
+
+    local t = now_clock()
+    if (not force) and t < (state._hud_next_upd or 0.0) then
+        return
+    end
+
+    hud_build_lines()
+    hud_recalc_box()
+
+    hud_set_position(state._hud_box.x, state._hud_box.y)
+    hud_set_text(table.concat(state._hud_lines, '\n'))
+    hud_set_visible(true)
+
+    state._hud_next_upd = t + 0.20
+end
+
+-- -----------------------------------------------------------------------------------------------
+-- Mouse (Drag + Click)
+-- يدعم شكلين من حدث الماوس:
+--  1) mouse(id, x, y, delta, blocked)
+--  2) mouse(e) حيث e جدول فيه message/x/y/delta/blocked
+-- -----------------------------------------------------------------------------------------------
+local function hud_handle_mouse(id, x, y, delta, blocked)
+    -- Ashita v3 أحياناً يمرر id/x/y كنص (وأحياناً بصيغة hex)، نقوم بتحويلها لأرقام.
+    local function to_num(v)
+        if type(v) == 'number' then return v end
+        if type(v) ~= 'string' then return nil end
+        local s = v:gsub('%s+', '')
+        if s == '' then return nil end
+        -- tonumber handles 0x.. in LuaJIT; keep safe anyway.
+        return tonumber(s)
+    end
+
+    local nid = to_num(id) or id
+    local nx  = to_num(x)
+    local ny  = to_num(y)
+
+    -- أثناء السحب أو انتظار السحب، نسمح بإنهاء السحب حتى لو لم تصل إحداثيات.
+    if (nid == WM_LBUTTONUP) and (state._hud_dragging or state._hud_drag_pending) then
+        state._hud_dragging = false
+        if state._hud_drag_pending then
+            state._hud_drag_pending = false
+            -- إذا كان الإفلات أثناء (pending) نعتبره نقرة على العنوان (طي/فتح).
+            local fn = state._hud_actions and state._hud_actions[1] or nil
+            if type(fn) == 'function' then pcall(fn) end
+        else
+            pcall(save_configs)
+        end
+        hud_update(true)
+        return true
+    end
+
+    -- تجاهل الإحداثيات غير الصالحة لباقي الأحداث.
+    if type(nx) ~= 'number' or type(ny) ~= 'number' then
+        return false
+    end
+
+    -- سحب فعلي (بعد تجاوز عتبة الحركة).
+    if state._hud_dragging then
+        if nid == WM_MOUSEMOVE then
+            state.hud_x = math.floor(nx - state._hud_drag_dx)
+            state.hud_y = math.floor(ny - state._hud_drag_dy)
+            hud_update(true)
+            return true
+        end
+        return true
+    end
+
+    -- سحب مُعلّق: نحدد هل هو نقرة أم سحب حسب عتبة الحركة.
+    if state._hud_drag_pending then
+        if nid == WM_MOUSEMOVE then
+            local dx = math.abs(nx - (state._hud_drag_start_x or nx))
+            local dy = math.abs(ny - (state._hud_drag_start_y or ny))
+            if dx > 3 or dy > 3 then
+                state._hud_drag_pending = false
+                state._hud_dragging = true
+                -- تطبيق الحركة مباشرة عند بدء السحب.
+                state.hud_x = math.floor(nx - state._hud_drag_dx)
+                state.hud_y = math.floor(ny - state._hud_drag_dy)
+                hud_update(true)
+            end
+            return true
+        end
+        -- تجاهل باقي الرسائل أثناء (pending).
+        return true
+    end
+
+    -- بدون سحب: معالجة النقرات.
+    if nid == WM_LBUTTONDOWN then
+        hud_update(true)
+        if not hud_point_inside(nx, ny) then return false end
+
+        local line = hud_line_at(ny)
+        if line == 1 then
+            -- سطر العنوان: النقر يطوي/يفتح، والسحب يحتاج حركة.
+            state._hud_drag_pending = true
+            state._hud_drag_start_x = nx
+            state._hud_drag_start_y = ny
+            state._hud_drag_dx = nx - (tonumber(state.hud_x) or state._hud_box.x)
+            state._hud_drag_dy = ny - (tonumber(state.hud_y) or state._hud_box.y)
+            return true
+        end
+
+        return true
+    elseif nid == WM_LBUTTONUP then
+        if not hud_point_inside(nx, ny) then return false end
+
+        local line = hud_line_at(ny)
+        local fn = state._hud_actions and state._hud_actions[line] or nil
+        if type(fn) == 'function' then
+            pcall(fn)
+            hud_update(true)
+            return true
+        end
+        return true
+    end
+
+    return false
+end
+
+
 -- Events (Ashita v3 only)
 ----------------------------------------------------------------------------------------------------
 if ashita and ashita.register_event then
@@ -774,12 +1374,18 @@ if ashita and ashita.register_event then
         state.next_action = 0.0
         state.next_cycle = now_clock() + 9999999.0
         pcall(save_configs) -- persist disabled so it never resumes automatically.
-        echo('Loaded (Ashita v3 ONLY, NO HUD). Auto-start is DISABLED. Use /singer on or /singer now')
+        echo('Loaded (Ashita v3 ONLY, HUD (pbar-style)). Auto-start is DISABLED. Use /singer on or /singer now')
         -- IMPORTANT: do not return any value here (no "return nil")
     end)
 
     ashita.register_event('unload', function()
         pcall(save_configs)
+        -- حذف HUD
+        pcall(function()
+            local fm = AshitaCore:GetFontManager()
+            if fm and fm.Delete then fm:Delete(HUD_ALIAS) end
+        end)
+
         echo('Unloaded.')
         -- IMPORTANT: do not return any value here (no "return nil")
     end)
@@ -788,6 +1394,24 @@ if ashita and ashita.register_event then
         local handled = handle_command(cmd, nType)
         return handled
     end)
+
+    ashita.register_event('mouse', function(a, b, c, d, e)
+        -- يدعم mouse(e) او mouse(id,x,y,delta,blocked)
+        local id, x, y, delta, blocked
+        if type(a) == 'table' then
+            id = a.message or a.id or a.msg
+            x  = a.x or a.X
+            y  = a.y or a.Y
+            delta = a.delta
+            blocked = a.blocked
+        else
+            id, x, y, delta, blocked = a, b, c, d, e
+        end
+        local handled = false
+        pcall(function() handled = hud_handle_mouse(id, x, y, delta, blocked) end)
+        return handled
+    end)
+
 
     pcall(function() ashita.register_event('d3d_present', function() tick() end) end)
     pcall(function() ashita.register_event('render',      function() tick() end) end)

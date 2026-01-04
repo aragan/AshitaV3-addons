@@ -1,6 +1,4 @@
 # Singer (Ashita v3) — No HUD
-**Author:** Aragan  
-**Version:** 1.1 ,version transformers coming.
 
 This package is **Ashita v3 ONLY** (LuaJIT / Lua 5.1).  
 It is a lightweight Singer addon (no HUD) that cycles through BRD song playlists.
@@ -171,3 +169,10 @@ Saved fields include:
 - Ashita v3 only.
 - No HUD / no screen drawing.
 - Chat output is in English.
+
+## Playlist Cycle
+
+- `/sing playlist cycle`
+- (Also works) `/singer playlist cycle`
+
+Each time you run it, it switches to the next playlist in the same order as in settings.lua (wraps back to the first after the last).

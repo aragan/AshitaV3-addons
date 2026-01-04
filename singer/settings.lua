@@ -4,6 +4,7 @@ return {
         -- /singer playlist default
         -- /singer playlist haste
         ["default"] = { "Mage's Ballad III", "Advancing March", "Victory March", "Blade Madrigal" },
+        ["debuffs"] = {"Carnage Elegy","Pining Nocturne",},
         ["haste"]   = { "Advancing March", "Victory March", "Blade Madrigal", "Sword Madrigal" },
         ["ongo"] = {"Learned Etude","Sage Etude","Mage's Ballad III","Victory March","Mage's Ballad II",},
         ["test"] = {"Adventurer's Dirge","Warding Round","Wind Carol II","Sword Madrigal","Valor Minuet V",},
@@ -70,7 +71,7 @@ return {
         ["arebati"] = {"Valor Minuet IV","Valor Minuet V","Knight's Minne IV","Knight's Minne V","Honor March",},
         ["1"] = {"Herculean Etude","Valor Minuet III","Valor Minuet IV","Valor Minuet V",},
         ["melee"] = {"Valor Minuet V","Valor Minuet IV","Honor March","Victory March","Valor Minuet III",},
-        ["2"] = {"Herculean Etude","Valor Minuet III","Valor Minuet IV","Valor Minuet V","Honor March",},
+        ["2"] = {"Army's Paeon","Shining Fantasia","Herculean Etude","Valor Minuet III",},
         ["mboze"] = {"Valor Minuet V","Valor Minuet IV","Valor Minuet III","Honor March","Valor Minuet II",},
         ["kalunga"] = {"Valor Minuet III","Valor Minuet V","Valor Minuet IV","Honor March","Fire Carol II",},
         ["sortie"] = {"Valor Minuet IV","Valor Minuet V","Blade Madrigal","Honor March","Aria of Passion",},
@@ -89,7 +90,6 @@ return {
         ["hast4"] = {"Valor Minuet IV","Honor March","Valor Minuet V","Victory March",},
         ["w3boss"] = {"Adventurer's Dirge","Blade Madrigal","Honor March","Valor Minuet IV","Valor Minuet V",},
         ["ody"] = {"Valor Minuet V","Valor Minuet IV","Honor March","Victory March","Valor Minuet III",},
-        ["clear"] = {},
         ["cait"] = {"Blade Madrigal","Honor March","Sentinel's Scherzo","Light Carol","Light Carol II",},
         ["xev"] = {"Valor Minuet V","Valor Minuet IV","Wind Carol II","Sentinel's Scherzo","Honor March",},
         ["mage"] = {"Honor March","Victory March","Mage's Ballad II","Mage's Ballad III",},
