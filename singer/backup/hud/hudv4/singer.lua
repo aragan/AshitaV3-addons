@@ -12,9 +12,8 @@
 _addon = _addon or {}
 _addon.name     = 'singer'
 _addon.author   = 'Aragan'
-_addon.version  = '1.2-v3- version transformers coming'
-_addon.desc     = 'Singer HUD for Ashita v3 ONLY'
-
+_addon.version  = '1.2-v3-insert-extra-songs'
+_addon.desc     = 'Singer (No HUD) for Ashita v3 ONLY'
 
 pcall(require, 'common')
 
@@ -91,14 +90,6 @@ local state = {
     hud_font_bold   = true,
     hud_bg_color    = 0x80000000,
     hud_bg_visible  = true,
-
-    -- طي / فتح الـ HUD عند الضغط على عنوان Singer
-    hud_collapsed   = false,
-
-    -- تتبع السحب مقابل النقر (سطر العنوان)
-    _hud_drag_pending = false,
-    _hud_drag_start_x = 0,
-    _hud_drag_start_y = 0,
 
     -- داخلي
     _hud_ready      = false,
@@ -530,6 +521,19 @@ local function set_playlist(name)
         end
     end
 
+    -- Insert extra songs starting from the 3rd song, then continue the playlist.
+    -- Requested: Sheepfoe Mambo* | Shining Fantasia | Herb Pastoral
+    if tostring(real):lower() ~= 'debuffs' then
+        local inject = { 'Sheepfoe Mambo*', 'Shining Fantasia', 'Herb Pastoral' }
+        local insert_at = 3
+        if #songs < 2 then
+            insert_at = #songs + 1
+        end
+        for j = #inject, 1, -1 do
+            table.insert(songs, insert_at, inject[j])
+        end
+    end
+
     state.songs = songs
     state.playlist = real
     save_configs()
@@ -590,45 +594,6 @@ local function cycle_playlist()
     local next_i = (idx % #names) + 1
     local next_name = names[next_i]
     return set_playlist(next_name)
-end
-
-----------------------------------------------------------------------------------------------------
--- /sing playlist cycleback
--- كل مرة: يرجع للـ Playlist السابق (حسب ترتيب settings.lua)
-----------------------------------------------------------------------------------------------------
-local function cycle_playlist_back()
-    if not state.settings then
-        load_settings()
-    end
-    if not state._pl_names_cache then
-        rebuild_playlist_cache()
-    end
-
-    local names = state._pl_names_cache
-    if not names or #names == 0 then
-        echo('No playlists found. Put settings.lua next to singer.lua.')
-        return false
-    end
-
-    local cur = tostring(state.playlist or ''):lower()
-    local idx = 0
-    for i = 1, #names do
-        if tostring(names[i] or ''):lower() == cur then
-            idx = i
-            break
-        end
-    end
-
-    local prev_i
-    if idx == 0 then
-        prev_i = #names -- إذا ما كان فيه Playlist محدد، ابدأ من الأخير
-    else
-        prev_i = idx - 1
-        if prev_i < 1 then prev_i = #names end
-    end
-
-    local prev_name = names[prev_i]
-    return set_playlist(prev_name)
 end
 
 
@@ -693,7 +658,16 @@ local function build_steps_for_song_list(list)
         if actions >= MAX_ACTIONS_PER_CYCLE then break end
 
         local song_name = (type(song) == 'string') and (song:gsub('^%s+', ''):gsub('%s+$', '')) or nil
-        local song_lower = song_name and song_name:lower() or nil
+        -- Allow marker suffixes like '*' (ex: Sheepfoe Mambo*) while casting.
+        local cast_name = song_name
+        if type(cast_name) == 'string' then
+            cast_name = cast_name:gsub('%s*%*+$', '')
+            cast_name = cast_name:gsub('^%s+', ''):gsub('%s+$', '')
+            if cast_name == '' then cast_name = nil end
+        else
+            cast_name = nil
+        end
+        local song_lower = cast_name and cast_name:lower() or nil
 
         -- Mode A: Marcato ON (by index) -> Marcato before song #marc_index.
         if state.marcato_first and (not marc_used) and (i == marc_index) then
@@ -709,9 +683,9 @@ local function build_steps_for_song_list(list)
             marc_used = true
         end
 
-        if song_name and song_name ~= '' then
+        if cast_name then
             steps[#steps+1] = {
-                cmd  = ('/ma "%s" %s'):format(song_name, state.target),
+                cmd  = ('/ma "%s" %s'):format(cast_name, state.target),
                 wait = (state.song_delay + (state.pad or 0)),
             }
             actions = actions + 1
@@ -760,7 +734,7 @@ local function show_help()
     echo('/singer on | off | toggle | status')
     echo('/singer now')
     echo('/singer playlists')
-    echo('/singer playlist <name|cycle|cycleback>')
+    echo('/singer playlist <name>')
     echo('/singer delay <sec>   (min 0.5)')
     echo('/singer interval <sec> (min 30)')
     echo('/singer target <tgt>  (ex: <me> or <t>)')
@@ -870,16 +844,12 @@ local function handle_command(cmd, nType)
     elseif sub == 'playlist' then
         local name = parts[3]
         if not name or name == '' then
-            echo('Usage: /singer playlist <name|cycle|cycleback>')
+            echo('Usage: /singer playlist <name|cycle>')
             return true
         end
 
-        local mode = tostring(name):lower()
-        if mode == 'cycle' then
+        if tostring(name):lower() == 'cycle' then
             cycle_playlist()
-            return true
-        elseif mode == 'cycleback' then
-            cycle_playlist_back()
             return true
         end
 
@@ -1126,14 +1096,7 @@ local function hud_build_lines()
     end
 
     -- سطر 1: عنوان (منطقة سحب)
-    add('|cFFFFFFFF|Singer|r', function()
-        state.hud_collapsed = not state.hud_collapsed
-    end)
-
-    -- إذا كان الـ HUD مطوي، نظهر العنوان فقط.
-    if state.hud_collapsed then
-        return
-    end
+    add('|cFFFFFFFF|Singer|r', nil)
 
     -- سطر 2: Enabled (click)
     add(('Enabled: [%s]'):format(hud_col(state.enabled)), function()
@@ -1254,94 +1217,45 @@ end
 --  2) mouse(e) حيث e جدول فيه message/x/y/delta/blocked
 -- -----------------------------------------------------------------------------------------------
 local function hud_handle_mouse(id, x, y, delta, blocked)
-    -- Ashita v3 أحياناً يمرر id/x/y كنص (وأحياناً بصيغة hex)، نقوم بتحويلها لأرقام.
-    local function to_num(v)
-        if type(v) == 'number' then return v end
-        if type(v) ~= 'string' then return nil end
-        local s = v:gsub('%s+', '')
-        if s == '' then return nil end
-        -- tonumber handles 0x.. in LuaJIT; keep safe anyway.
-        return tonumber(s)
-    end
+    -- ignore invalid coordinates
+    if type(x) ~= 'number' or type(y) ~= 'number' then return false end
 
-    local nid = to_num(id) or id
-    local nx  = to_num(x)
-    local ny  = to_num(y)
-
-    -- أثناء السحب أو انتظار السحب، نسمح بإنهاء السحب حتى لو لم تصل إحداثيات.
-    if (nid == WM_LBUTTONUP) and (state._hud_dragging or state._hud_drag_pending) then
-        state._hud_dragging = false
-        if state._hud_drag_pending then
-            state._hud_drag_pending = false
-            -- إذا كان الإفلات أثناء (pending) نعتبره نقرة على العنوان (طي/فتح).
-            local fn = state._hud_actions and state._hud_actions[1] or nil
-            if type(fn) == 'function' then pcall(fn) end
-        else
-            pcall(save_configs)
-        end
-        hud_update(true)
-        return true
-    end
-
-    -- تجاهل الإحداثيات غير الصالحة لباقي الأحداث.
-    if type(nx) ~= 'number' or type(ny) ~= 'number' then
-        return false
-    end
-
-    -- سحب فعلي (بعد تجاوز عتبة الحركة).
+    -- سحب
     if state._hud_dragging then
-        if nid == WM_MOUSEMOVE then
-            state.hud_x = math.floor(nx - state._hud_drag_dx)
-            state.hud_y = math.floor(ny - state._hud_drag_dy)
+        if id == WM_MOUSEMOVE then
+            state.hud_x = math.floor(x - state._hud_drag_dx)
+            state.hud_y = math.floor(y - state._hud_drag_dy)
+            hud_update(true)
+            return true
+        elseif id == WM_LBUTTONUP then
+            state._hud_dragging = false
+            save_configs()
             hud_update(true)
             return true
         end
         return true
     end
 
-    -- سحب مُعلّق: نحدد هل هو نقرة أم سحب حسب عتبة الحركة.
-    if state._hud_drag_pending then
-        if nid == WM_MOUSEMOVE then
-            local dx = math.abs(nx - (state._hud_drag_start_x or nx))
-            local dy = math.abs(ny - (state._hud_drag_start_y or ny))
-            if dx > 3 or dy > 3 then
-                state._hud_drag_pending = false
-                state._hud_dragging = true
-                -- تطبيق الحركة مباشرة عند بدء السحب.
-                state.hud_x = math.floor(nx - state._hud_drag_dx)
-                state.hud_y = math.floor(ny - state._hud_drag_dy)
-                hud_update(true)
-            end
-            return true
-        end
-        -- تجاهل باقي الرسائل أثناء (pending).
-        return true
-    end
-
-    -- بدون سحب: معالجة النقرات.
-    if nid == WM_LBUTTONDOWN then
+    if id == WM_LBUTTONDOWN then
         hud_update(true)
-        if not hud_point_inside(nx, ny) then return false end
+        if not hud_point_inside(x, y) then return false end
 
-        local line = hud_line_at(ny)
+        local line = hud_line_at(y)
         if line == 1 then
-            -- سطر العنوان: النقر يطوي/يفتح، والسحب يحتاج حركة.
-            state._hud_drag_pending = true
-            state._hud_drag_start_x = nx
-            state._hud_drag_start_y = ny
-            state._hud_drag_dx = nx - (tonumber(state.hud_x) or state._hud_box.x)
-            state._hud_drag_dy = ny - (tonumber(state.hud_y) or state._hud_box.y)
+            state._hud_dragging = true
+            state._hud_drag_dx = x - (tonumber(state.hud_x) or state._hud_box.x)
+            state._hud_drag_dy = y - (tonumber(state.hud_y) or state._hud_box.y)
             return true
         end
 
         return true
-    elseif nid == WM_LBUTTONUP then
-        if not hud_point_inside(nx, ny) then return false end
+    elseif id == WM_LBUTTONUP then
+        if not hud_point_inside(x, y) then return false end
 
-        local line = hud_line_at(ny)
+        local line = hud_line_at(y)
         local fn = state._hud_actions and state._hud_actions[line] or nil
         if type(fn) == 'function' then
-            pcall(fn)
+            fn()
             hud_update(true)
             return true
         end
@@ -1350,7 +1264,6 @@ local function hud_handle_mouse(id, x, y, delta, blocked)
 
     return false
 end
-
 
 -- Events (Ashita v3 only)
 ----------------------------------------------------------------------------------------------------

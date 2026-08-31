@@ -12,9 +12,8 @@
 _addon = _addon or {}
 _addon.name     = 'singer'
 _addon.author   = 'Aragan'
-_addon.version  = '1.2-v3- version transformers coming'
-_addon.desc     = 'Singer HUD for Ashita v3 ONLY'
-
+_addon.version  = '1.1-v3-playlist-cycle'
+_addon.desc     = 'Singer (No HUD) for Ashita v3 ONLY'
 
 pcall(require, 'common')
 
@@ -592,45 +591,6 @@ local function cycle_playlist()
     return set_playlist(next_name)
 end
 
-----------------------------------------------------------------------------------------------------
--- /sing playlist cycleback
--- كل مرة: يرجع للـ Playlist السابق (حسب ترتيب settings.lua)
-----------------------------------------------------------------------------------------------------
-local function cycle_playlist_back()
-    if not state.settings then
-        load_settings()
-    end
-    if not state._pl_names_cache then
-        rebuild_playlist_cache()
-    end
-
-    local names = state._pl_names_cache
-    if not names or #names == 0 then
-        echo('No playlists found. Put settings.lua next to singer.lua.')
-        return false
-    end
-
-    local cur = tostring(state.playlist or ''):lower()
-    local idx = 0
-    for i = 1, #names do
-        if tostring(names[i] or ''):lower() == cur then
-            idx = i
-            break
-        end
-    end
-
-    local prev_i
-    if idx == 0 then
-        prev_i = #names -- إذا ما كان فيه Playlist محدد، ابدأ من الأخير
-    else
-        prev_i = idx - 1
-        if prev_i < 1 then prev_i = #names end
-    end
-
-    local prev_name = names[prev_i]
-    return set_playlist(prev_name)
-end
-
 
 ----------------------------------------------------------------------------------------------------
 -- Casting logic
@@ -760,7 +720,7 @@ local function show_help()
     echo('/singer on | off | toggle | status')
     echo('/singer now')
     echo('/singer playlists')
-    echo('/singer playlist <name|cycle|cycleback>')
+    echo('/singer playlist <name>')
     echo('/singer delay <sec>   (min 0.5)')
     echo('/singer interval <sec> (min 30)')
     echo('/singer target <tgt>  (ex: <me> or <t>)')
@@ -870,16 +830,12 @@ local function handle_command(cmd, nType)
     elseif sub == 'playlist' then
         local name = parts[3]
         if not name or name == '' then
-            echo('Usage: /singer playlist <name|cycle|cycleback>')
+            echo('Usage: /singer playlist <name|cycle>')
             return true
         end
 
-        local mode = tostring(name):lower()
-        if mode == 'cycle' then
+        if tostring(name):lower() == 'cycle' then
             cycle_playlist()
-            return true
-        elseif mode == 'cycleback' then
-            cycle_playlist_back()
             return true
         end
 

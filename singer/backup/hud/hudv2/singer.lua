@@ -12,9 +12,8 @@
 _addon = _addon or {}
 _addon.name     = 'singer'
 _addon.author   = 'Aragan'
-_addon.version  = '1.2-v3- version transformers coming'
-_addon.desc     = 'Singer HUD for Ashita v3 ONLY'
-
+_addon.version  = '1.0-v3-playlists-from-settingslua'
+_addon.desc     = 'Singer (No HUD) for Ashita v3 ONLY'
 
 pcall(require, 'common')
 
@@ -91,14 +90,6 @@ local state = {
     hud_font_bold   = true,
     hud_bg_color    = 0x80000000,
     hud_bg_visible  = true,
-
-    -- طي / فتح الـ HUD عند الضغط على عنوان Singer
-    hud_collapsed   = false,
-
-    -- تتبع السحب مقابل النقر (سطر العنوان)
-    _hud_drag_pending = false,
-    _hud_drag_start_x = 0,
-    _hud_drag_start_y = 0,
 
     -- داخلي
     _hud_ready      = false,
@@ -320,65 +311,6 @@ end
 if type(_G.L) ~= 'function' then _G.L = function(t) return t end end
 if type(_G.T) ~= 'function' then _G.T = function(t) return t end end
 
-
-----------------------------------------------------------------------------------------------------
--- استخراج ترتيب أسماء الـ Playlists من settings.lua بنفس ترتيب الكتابة داخل الملف
--- (لأن pairs() لا يضمن ترتيب ثابت في Lua 5.1)
-----------------------------------------------------------------------------------------------------
-local function parse_playlist_names_from_settings_file()
-    local f = io.open(SETTINGS_FILE, 'r')
-    if not f then return nil end
-    local file_text = f:read('*a') or ''
-    f:close()
-
-    -- ابحث عن جدول: playlist = { ... }
-    local s = file_text:find('playlist')
-    if not s then return nil end
-
-    local eq = file_text:find('=', s)
-    if not eq then return nil end
-
-    local brace = file_text:find('{', eq)
-    if not brace then return nil end
-
-    -- حدد نهاية جدول playlist عبر عدّ الأقواس (يشمل الجداول الداخلية للأغاني)
-    local depth = 0
-    local i = brace
-    local finish = nil
-    while i <= #file_text do
-        local c = file_text:sub(i,i)
-        if c == '{' then
-            depth = depth + 1
-        elseif c == '}' then
-            depth = depth - 1
-            if depth == 0 then
-                finish = i
-                break
-            end
-        end
-        i = i + 1
-    end
-
-    if not finish or finish <= brace then
-        return nil
-    end
-
-    local chunk = file_text:sub(brace, finish)
-
-    -- التقط أسماء المفاتيح ["name"] = {  بالترتيب
-    local names = {}
-    for key in chunk:gmatch('%[%s*["\']([^"\']+)["\']%s*%]%s*=%s*%{') do
-        if key and key ~= '' then
-            names[#names + 1] = key
-        end
-    end
-
-    if #names == 0 then
-        return nil
-    end
-    return names
-end
-
 local function rebuild_playlist_cache()
     state._pl_names_cache = nil
     state._pl_pos = 1
@@ -389,7 +321,6 @@ local function rebuild_playlist_cache()
         return
     end
 
-    -- Build LUT for case-insensitive matching:
     local names = {}
     local lut = {}
     for k, _ in pairs(cfg.playlist) do
@@ -399,39 +330,7 @@ local function rebuild_playlist_cache()
         end
     end
 
-    -- Preserve the order from settings.lua (file order) if possible:
-    local file_names = parse_playlist_names_from_settings_file()
-    if file_names and #file_names > 0 then
-        local ordered = {}
-        local seen = {}
-
-        for i = 1, #file_names do
-            local want = tostring(file_names[i] or ''):lower()
-            local real = lut[want]
-            if real and not seen[real:lower()] then
-                ordered[#ordered + 1] = real
-                seen[real:lower()] = true
-            end
-        end
-
-        -- Append anything not found in the file-order scan (fallback)
-        for i = 1, #names do
-            local k = names[i]
-            local kl = k:lower()
-            if not seen[kl] then
-                ordered[#ordered + 1] = k
-                seen[kl] = true
-            end
-        end
-
-        if #ordered > 0 then
-            names = ordered
-        end
-    else
-        -- Stable fallback: alphabetical
-        table.sort(names, function(a,b) return a:lower() < b:lower() end)
-    end
-
+    table.sort(names, function(a,b) return a:lower() < b:lower() end)
     state._pl_names_cache = names
     state._pl_lut = lut
 end
@@ -561,78 +460,6 @@ local function set_playlist(name)
 end
 
 ----------------------------------------------------------------------------------------------------
--- /sing playlist cycle
--- كل مرة: ينتقل للـ Playlist التالي (حسب ترتيب settings.lua)
-----------------------------------------------------------------------------------------------------
-local function cycle_playlist()
-    if not state.settings then
-        load_settings()
-    end
-    if not state._pl_names_cache then
-        rebuild_playlist_cache()
-    end
-
-    local names = state._pl_names_cache
-    if not names or #names == 0 then
-        echo('No playlists found. Put settings.lua next to singer.lua.')
-        return false
-    end
-
-    local cur = tostring(state.playlist or ''):lower()
-    local idx = 0
-    for i = 1, #names do
-        if tostring(names[i] or ''):lower() == cur then
-            idx = i
-            break
-        end
-    end
-
-    local next_i = (idx % #names) + 1
-    local next_name = names[next_i]
-    return set_playlist(next_name)
-end
-
-----------------------------------------------------------------------------------------------------
--- /sing playlist cycleback
--- كل مرة: يرجع للـ Playlist السابق (حسب ترتيب settings.lua)
-----------------------------------------------------------------------------------------------------
-local function cycle_playlist_back()
-    if not state.settings then
-        load_settings()
-    end
-    if not state._pl_names_cache then
-        rebuild_playlist_cache()
-    end
-
-    local names = state._pl_names_cache
-    if not names or #names == 0 then
-        echo('No playlists found. Put settings.lua next to singer.lua.')
-        return false
-    end
-
-    local cur = tostring(state.playlist or ''):lower()
-    local idx = 0
-    for i = 1, #names do
-        if tostring(names[i] or ''):lower() == cur then
-            idx = i
-            break
-        end
-    end
-
-    local prev_i
-    if idx == 0 then
-        prev_i = #names -- إذا ما كان فيه Playlist محدد، ابدأ من الأخير
-    else
-        prev_i = idx - 1
-        if prev_i < 1 then prev_i = #names end
-    end
-
-    local prev_name = names[prev_i]
-    return set_playlist(prev_name)
-end
-
-
-----------------------------------------------------------------------------------------------------
 -- Casting logic
 ----------------------------------------------------------------------------------------------------
 local MAX_ACTIONS_PER_CYCLE = 32
@@ -760,7 +587,7 @@ local function show_help()
     echo('/singer on | off | toggle | status')
     echo('/singer now')
     echo('/singer playlists')
-    echo('/singer playlist <name|cycle|cycleback>')
+    echo('/singer playlist <name>')
     echo('/singer delay <sec>   (min 0.5)')
     echo('/singer interval <sec> (min 30)')
     echo('/singer target <tgt>  (ex: <me> or <t>)')
@@ -870,19 +697,9 @@ local function handle_command(cmd, nType)
     elseif sub == 'playlist' then
         local name = parts[3]
         if not name or name == '' then
-            echo('Usage: /singer playlist <name|cycle|cycleback>')
+            echo('Usage: /singer playlist <name>')
             return true
         end
-
-        local mode = tostring(name):lower()
-        if mode == 'cycle' then
-            cycle_playlist()
-            return true
-        elseif mode == 'cycleback' then
-            cycle_playlist_back()
-            return true
-        end
-
         if not state.settings then load_settings() end
         set_playlist(name)
         return true
@@ -1126,14 +943,7 @@ local function hud_build_lines()
     end
 
     -- سطر 1: عنوان (منطقة سحب)
-    add('|cFFFFFFFF|Singer|r', function()
-        state.hud_collapsed = not state.hud_collapsed
-    end)
-
-    -- إذا كان الـ HUD مطوي، نظهر العنوان فقط.
-    if state.hud_collapsed then
-        return
-    end
+    add('|cFFFFFFFF|Singer|r', nil)
 
     -- سطر 2: Enabled (click)
     add(('Enabled: [%s]'):format(hud_col(state.enabled)), function()
@@ -1254,94 +1064,45 @@ end
 --  2) mouse(e) حيث e جدول فيه message/x/y/delta/blocked
 -- -----------------------------------------------------------------------------------------------
 local function hud_handle_mouse(id, x, y, delta, blocked)
-    -- Ashita v3 أحياناً يمرر id/x/y كنص (وأحياناً بصيغة hex)، نقوم بتحويلها لأرقام.
-    local function to_num(v)
-        if type(v) == 'number' then return v end
-        if type(v) ~= 'string' then return nil end
-        local s = v:gsub('%s+', '')
-        if s == '' then return nil end
-        -- tonumber handles 0x.. in LuaJIT; keep safe anyway.
-        return tonumber(s)
-    end
+    -- ignore invalid coordinates
+    if type(x) ~= 'number' or type(y) ~= 'number' then return false end
 
-    local nid = to_num(id) or id
-    local nx  = to_num(x)
-    local ny  = to_num(y)
-
-    -- أثناء السحب أو انتظار السحب، نسمح بإنهاء السحب حتى لو لم تصل إحداثيات.
-    if (nid == WM_LBUTTONUP) and (state._hud_dragging or state._hud_drag_pending) then
-        state._hud_dragging = false
-        if state._hud_drag_pending then
-            state._hud_drag_pending = false
-            -- إذا كان الإفلات أثناء (pending) نعتبره نقرة على العنوان (طي/فتح).
-            local fn = state._hud_actions and state._hud_actions[1] or nil
-            if type(fn) == 'function' then pcall(fn) end
-        else
-            pcall(save_configs)
-        end
-        hud_update(true)
-        return true
-    end
-
-    -- تجاهل الإحداثيات غير الصالحة لباقي الأحداث.
-    if type(nx) ~= 'number' or type(ny) ~= 'number' then
-        return false
-    end
-
-    -- سحب فعلي (بعد تجاوز عتبة الحركة).
+    -- سحب
     if state._hud_dragging then
-        if nid == WM_MOUSEMOVE then
-            state.hud_x = math.floor(nx - state._hud_drag_dx)
-            state.hud_y = math.floor(ny - state._hud_drag_dy)
+        if id == WM_MOUSEMOVE then
+            state.hud_x = math.floor(x - state._hud_drag_dx)
+            state.hud_y = math.floor(y - state._hud_drag_dy)
+            hud_update(true)
+            return true
+        elseif id == WM_LBUTTONUP then
+            state._hud_dragging = false
+            save_configs()
             hud_update(true)
             return true
         end
         return true
     end
 
-    -- سحب مُعلّق: نحدد هل هو نقرة أم سحب حسب عتبة الحركة.
-    if state._hud_drag_pending then
-        if nid == WM_MOUSEMOVE then
-            local dx = math.abs(nx - (state._hud_drag_start_x or nx))
-            local dy = math.abs(ny - (state._hud_drag_start_y or ny))
-            if dx > 3 or dy > 3 then
-                state._hud_drag_pending = false
-                state._hud_dragging = true
-                -- تطبيق الحركة مباشرة عند بدء السحب.
-                state.hud_x = math.floor(nx - state._hud_drag_dx)
-                state.hud_y = math.floor(ny - state._hud_drag_dy)
-                hud_update(true)
-            end
-            return true
-        end
-        -- تجاهل باقي الرسائل أثناء (pending).
-        return true
-    end
-
-    -- بدون سحب: معالجة النقرات.
-    if nid == WM_LBUTTONDOWN then
+    if id == WM_LBUTTONDOWN then
         hud_update(true)
-        if not hud_point_inside(nx, ny) then return false end
+        if not hud_point_inside(x, y) then return false end
 
-        local line = hud_line_at(ny)
+        local line = hud_line_at(y)
         if line == 1 then
-            -- سطر العنوان: النقر يطوي/يفتح، والسحب يحتاج حركة.
-            state._hud_drag_pending = true
-            state._hud_drag_start_x = nx
-            state._hud_drag_start_y = ny
-            state._hud_drag_dx = nx - (tonumber(state.hud_x) or state._hud_box.x)
-            state._hud_drag_dy = ny - (tonumber(state.hud_y) or state._hud_box.y)
+            state._hud_dragging = true
+            state._hud_drag_dx = x - (tonumber(state.hud_x) or state._hud_box.x)
+            state._hud_drag_dy = y - (tonumber(state.hud_y) or state._hud_box.y)
             return true
         end
 
         return true
-    elseif nid == WM_LBUTTONUP then
-        if not hud_point_inside(nx, ny) then return false end
+    elseif id == WM_LBUTTONUP then
+        if not hud_point_inside(x, y) then return false end
 
-        local line = hud_line_at(ny)
+        local line = hud_line_at(y)
         local fn = state._hud_actions and state._hud_actions[line] or nil
         if type(fn) == 'function' then
-            pcall(fn)
+            fn()
             hud_update(true)
             return true
         end
@@ -1350,7 +1111,6 @@ local function hud_handle_mouse(id, x, y, delta, blocked)
 
     return false
 end
-
 
 -- Events (Ashita v3 only)
 ----------------------------------------------------------------------------------------------------

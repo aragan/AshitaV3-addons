@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configs>
+  <settings enabled="false" repeat="false" delay="8.5" cycle="80.0" target="&lt;me&gt;" active="1" use_nitro="false" use_ccsv="false" use_marcato="false" marcato_index="1" marcato_song="" hud="true" hud_x="1308" hud_y="283" debug="false" />
+</configs>

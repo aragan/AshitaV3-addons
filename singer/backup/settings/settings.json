@@ -1,0 +1,638 @@
+{
+  "enabled": false,
+  "repeat": true,
+  "delay": 6,
+  "cycle": 180,
+  "set": "ongo",
+  "use_nitro": false,
+  "use_ccsv": false,
+  "use_marcato": false,
+  "use_pianissimo": false,
+  "debug": false,
+  "sets": {
+    "1": {
+      "party_songs": [
+        "Herculean Etude",
+        "Valor Minuet III",
+        "Valor Minuet IV",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "11": {
+      "party_songs": [
+        "Herculean Etude",
+        "Valor Minuet III",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "2": {
+      "party_songs": [
+        "Herculean Etude",
+        "Valor Minuet III",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "Aristaeus": {
+      "party_songs": [
+        "Victory March",
+        "Honor March",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Knight's Minne IV"
+      ],
+      "party_target": "<me>"
+    },
+    "Dealan-dhe": {
+      "party_songs": [
+        "Sentinel's Scherzo",
+        "Honor March",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "Gigelorum": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Honor March",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "Gogmagog": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Honor March",
+        "Sentinel's Scherzo",
+        "Valor Minuet V",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "Henwen": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Honor March",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "Procne": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Honor March",
+        "Knight's Minne IV",
+        "Valor Minuet V",
+        "Blade Madrigal"
+      ],
+      "party_target": "<me>"
+    },
+    "Procne2": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Honor March",
+        "Sentinel's Scherzo",
+        "Valor Minuet V",
+        "Blade Madrigal"
+      ],
+      "party_target": "<me>"
+    },
+    "alex": {
+      "party_songs": [
+        "Mage's Ballad III",
+        "Valor Minuet V",
+        "Honor March",
+        "Blade Madrigal"
+      ],
+      "party_target": "<me>"
+    },
+    "ambu": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Blade Madrigal",
+        "Honor March",
+        "Knight's Minne V",
+        "Valor Minuet IV"
+      ],
+      "party_target": "<me>"
+    },
+    "ambuscade": {
+      "party_songs": [
+        "Blade Madrigal",
+        "Honor March",
+        "Valor Minuet III",
+        "Valor Minuet IV",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "ambuscade4": {
+      "party_songs": [
+        "Blade Madrigal",
+        "Honor March",
+        "Victory March",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "arebati": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Knight's Minne IV",
+        "Knight's Minne V",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "arewar": {
+      "party_songs": [
+        "Valor Minuet II",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Honor March",
+        "Valor Minuet III"
+      ],
+      "party_target": "<me>"
+    },
+    "aris": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Knight's Minne V",
+        "Knight's Minne IV"
+      ],
+      "party_target": "<me>"
+    },
+    "bumba": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Knight's Minne V",
+        "Honor March",
+        "Blade Madrigal"
+      ],
+      "party_target": "<me>"
+    },
+    "cait": {
+      "party_songs": [
+        "Blade Madrigal",
+        "Honor March",
+        "Sentinel's Scherzo",
+        "Light Carol",
+        "Light Carol II"
+      ],
+      "party_target": "<me>"
+    },
+    "clear": {
+      "party_songs": [
+      ],
+      "party_target": "<me>"
+    },
+    "cuijatender": {
+      "party_songs": [
+        "Sentinel's Scherzo",
+        "Victory March",
+        "Light Carol II",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "default": {
+      "debuff_songs": [
+        "Carnage Elegy"
+      ],
+      "debuff_target": "<t>",
+      "party_songs": [
+        "Mage's Ballad III",
+        "Advancing March",
+        "Victory March",
+        "Blade Madrigal"
+      ],
+      "party_target": "<me>"
+    },
+    "esortie": {
+      "party_songs": [
+        "Mage's Ballad III",
+        "Mage's Ballad II",
+        "Honor March",
+        "Blade Madrigal",
+        "Valor Minuet IV"
+      ],
+      "party_target": "<me>"
+    },
+    "gige": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Honor March",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Valor Minuet III"
+      ],
+      "party_target": "<me>"
+    },
+    "hast4": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Honor March",
+        "Valor Minuet V",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "haste": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Honor March",
+        "Blade Madrigal",
+        "Valor Minuet V",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "haste4": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Advancing March",
+        "Valor Minuet V",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "kalunga": {
+      "party_songs": [
+        "Valor Minuet III",
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Fire Carol II"
+      ],
+      "party_target": "<me>"
+    },
+    "lilmnk": {
+      "party_songs": [
+        "Mage's Ballad III",
+        "Blade Madrigal",
+        "Victory March",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "lilsam": {
+      "party_songs": [
+        "Blade Madrigal",
+        "Sinewy Etude",
+        "Herculean Etude",
+        "Valor Minuet V",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "mage": {
+      "party_songs": [
+        "Honor March",
+        "Victory March",
+        "Mage's Ballad II",
+        "Mage's Ballad III"
+      ],
+      "party_target": "<me>"
+    },
+    "mboze": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Valor Minuet III",
+        "Honor March",
+        "Valor Minuet II"
+      ],
+      "party_target": "<me>"
+    },
+    "mboze2": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Sentinel's Scherzo",
+        "Honor March",
+        "Blade Madrigal",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "melee": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Victory March",
+        "Valor Minuet III"
+      ],
+      "party_target": "<me>"
+    },
+    "melee4": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "meleeacc": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Blade Madrigal",
+        "Honor March",
+        "Victory March",
+        "Valor Minuet IV"
+      ],
+      "party_target": "<me>"
+    },
+    "meleehaste2": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Blade Madrigal",
+        "Valor Minuet III"
+      ],
+      "party_target": "<me>"
+    },
+    "ngai": {
+      "party_songs": [
+        "Honor March",
+        "Valor Minuet V",
+        "Blade Madrigal",
+        "Valor Minuet IV",
+        "Sentinel's Scherzo"
+      ],
+      "party_target": "<me>"
+    },
+    "odin": {
+      "party_songs": [
+        "Knight's Minne V",
+        "Honor March",
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Valor Minuet III"
+      ],
+      "party_target": "<me>"
+    },
+    "ody": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Victory March",
+        "Valor Minuet III"
+      ],
+      "party_target": "<me>"
+    },
+    "ody4": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Victory March"
+      ],
+      "party_target": "<me>"
+    },
+    "ongo": {
+      "party_songs": [
+        "Learned Etude",
+        "Sage Etude",
+        "Mage's Ballad III",
+        "Victory March",
+        "Mage's Ballad II"
+      ],
+      "party_target": "<me>"
+    },
+    "ouryu": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Sentinel's Scherzo",
+        "Honor March",
+        "Earth Carol"
+      ],
+      "party_target": "<me>"
+    },
+    "peach": {
+      "party_songs": [
+        "Honor March",
+        "Knight's Minne V",
+        "Knight's Minne IV",
+        "Army's Paeon VI",
+        "Knight's Minne III"
+      ],
+      "party_target": "<me>"
+    },
+    "pl": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Adventurer's Dirge",
+        "Knight's Minne V",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "procne": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Blade Madrigal",
+        "Honor March",
+        "Knight's Minne IV"
+      ],
+      "party_target": "<me>"
+    },
+    "range": {
+      "party_songs": [
+        "Honor March",
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Archer's Prelude",
+        "Valor Minuet III"
+      ],
+      "party_target": "<me>"
+    },
+    "seg": {
+      "party_songs": [
+        "Valor Minuet III",
+        "Honor March",
+        "Valor Minuet IV",
+        "Victory March",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "seg4": {
+      "party_songs": [
+        "Advancing March",
+        "Victory March",
+        "Valor Minuet IV",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "shin": {
+      "party_songs": [
+        "Blade Madrigal",
+        "Valor Minuet V",
+        "Sentinel's Scherzo",
+        "Honor March",
+        "Valor Minuet IV"
+      ],
+      "party_target": "<me>"
+    },
+    "shinryu": {
+      "party_songs": [
+        "Blade Madrigal",
+        "Honor March",
+        "Valor Minuet V",
+        "Dark Carol",
+        "Herculean Etude"
+      ],
+      "party_target": "<me>"
+    },
+    "shinryu4": {
+      "party_songs": [
+        "Blade Madrigal",
+        "Honor March",
+        "Valor Minuet V",
+        "Dark Carol"
+      ],
+      "party_target": "<me>"
+    },
+    "sortie": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Blade Madrigal",
+        "Honor March",
+        "Aria of Passion"
+      ],
+      "party_target": "<me>"
+    },
+    "sortie4": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Honor March",
+        "Blade Madrigal"
+      ],
+      "party_target": "<me>"
+    },
+    "sv5": {
+      "party_songs": [
+        "Valor Minuet III",
+        "Valor Minuet IV",
+        "Valor Minuet V",
+        "Honor March",
+        "Valor Minuet II"
+      ],
+      "party_target": "<me>"
+    },
+    "tank": {
+      "party_songs": [
+        "Knight's Minne V",
+        "Honor March",
+        "Foe Sirvente",
+        "Sentinel's Scherzo",
+        "Mage's Ballad III"
+      ],
+      "party_target": "<me>"
+    },
+    "test": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Warding Round",
+        "Wind Carol II",
+        "Sword Madrigal",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "volte": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Honor March",
+        "Blade Madrigal",
+        "Sword Madrigal",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "w2": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Blade Madrigal",
+        "Honor March",
+        "Valor Minuet V",
+        "Knight's Minne V"
+      ],
+      "party_target": "<me>"
+    },
+    "w3": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Blade Madrigal",
+        "Honor March",
+        "Sword Madrigal",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "w3boss": {
+      "party_songs": [
+        "Adventurer's Dirge",
+        "Blade Madrigal",
+        "Honor March",
+        "Valor Minuet IV",
+        "Valor Minuet V"
+      ],
+      "party_target": "<me>"
+    },
+    "xev": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Valor Minuet IV",
+        "Wind Carol II",
+        "Sentinel's Scherzo",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "xevfarm": {
+      "party_songs": [
+        "Valor Minuet V",
+        "Blade Madrigal",
+        "Wind Carol II",
+        "Honor March",
+        "Honor March"
+      ],
+      "party_target": "<me>"
+    },
+    "xevioso": {
+      "party_songs": [
+        "Valor Minuet IV",
+        "Honor March",
+        "Sentinel's Scherzo",
+        "Valor Minuet V",
+        "Wind Carol II"
+      ],
+      "party_target": "<me>"
+    }
+  }
+}

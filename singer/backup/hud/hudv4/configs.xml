@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configs>
+  <settings enabled="true" repeat="false" delay="5.5" cycle="80.0" target="&lt;me&gt;" active="11" use_nitro="false" use_ccsv="false" use_marcato="false" marcato_index="1" marcato_song="Mage&apos;s Ballad II" hud="true" hud_x="1287" hud_y="291" debug="false" />
+</configs>
